@@ -17,15 +17,14 @@ def choose_activation(activation):
             
 class mlp(torch.nn.Module):
 
-    def __init__(self, in_features, out_features, d_k,
-                 seed, activation = 'elu', batch_norm=False):
+    def __init__(self,
+                 in_features,
+                 out_features,
+                 d_k,
+                 seed,
+                 activation='elu',
+                 batch_norm=False):
         super(mlp, self).__init__()
-        
-#         torch.manual_seed(seed)
-#         torch.cuda.manual_seed(seed)
-#         torch.cuda.manual_seed_all(seed)
-#         torch.backends.cudnn.deterministic = True
-#         torch.backends.cudnn.benchmark = False
         
         self.in_features = in_features
         self.out_features = out_features
@@ -39,7 +38,7 @@ class mlp(torch.nn.Module):
 
         d_in = [in_features]
         d_k = d_k + [out_features]
-        for i in range(0,len(d_k)):
+        for i in range(0, len(d_k)):
             self.fc.append(nn.Linear(d_in[i], d_k[i], bias=True))
             d_in = d_in + [d_k[i]]
             if self.batch_norm and i!=len(d_k)-1:
@@ -51,11 +50,10 @@ class mlp(torch.nn.Module):
 
 
     def forward(self, x):
-        for i in range(0,len(self.fc)-1):
+        for i in range(0, len(self.fc)-1):
             if self.batch_norm:
                 x = self.activation(self.bn[i](self.fc[i](x)))
             else:
                 x = self.activation(self.fc[i](x))
-
         x = self.fc[-1](x)
         return x

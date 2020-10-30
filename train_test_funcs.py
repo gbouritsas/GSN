@@ -4,6 +4,8 @@ import numpy as np
 import torch.nn.functional as F
 import pdb
 
+from scipy.spatial.distance import squareform
+
 from utils_misc import isnotebook
 if isnotebook():
     from tqdm import tqdm_notebook as tqdm
@@ -43,28 +45,26 @@ def resume_training(checkpoint_filename, model, optim, scheduler):
     print('Resuming from epoch {}'.format(start_epoch)) 
     return start_epoch
 
-def train_loader_inductive(
-                           loader_train, 
-                           loader_test, 
-                           model, 
-                           optim, 
-                           loss_fn, 
-                           start_epoch, 
-                           n_epochs, 
-                           eval_freq,
-                           loader_val=None,
-                           n_iters=None, 
-                           prediction_fn=None,
-                           evaluator=None,
-                           scheduler=None, 
-                           min_lr=0.0,
-                           EarlyStopping=False, 
-                           patience=None, 
-                           writer=None, 
-                           checkpoint_file=None, 
-                           wandb_realtime=False,
-                           fold_idx=None,
-                           n_iters_test = None):
+def train(
+       loader_train,
+       loader_test,
+       model,
+       optim,
+       loss_fn,
+       start_epoch,
+       n_epochs,
+       eval_freq,
+       loader_val=None,
+       n_iters=None,
+       prediction_fn=None,
+       evaluator=None,
+       scheduler=None,
+       min_lr=0.0,
+       patience=None,
+       checkpoint_file=None,
+       wandb_realtime=False,
+       fold_idx=None,
+       n_iters_test = None):
     
     train_losses = []; train_accs = []
     test_losses = []; test_accs = []
@@ -120,9 +120,9 @@ def train_loader_inductive(
                     test_loss, test_acc = test_ogb(loader_test, model, loss_fn, device, evaluator, n_iters_test)
                 else:
                     train_loss, train_acc =\
-                                test_loader_inductive(loader_train, model, loss_fn, device, prediction_fn)
+                                test(loader_train, model, loss_fn, device, prediction_fn)
                     test_loss, test_acc =\
-                                test_loader_inductive(loader_test, model, loss_fn, device, prediction_fn)
+                                test(loader_test, model, loss_fn, device, prediction_fn)
                     
                     
                 train_losses.append(train_loss); train_accs.append(train_acc); 
@@ -134,7 +134,7 @@ def train_loader_inductive(
                         val_loss, val_acc = test_ogb(loader_val, model, loss_fn, device, evaluator, n_iters_test)
                     else:
                         val_loss, val_acc =\
-                                test_loader_inductive(loader_val, model, loss_fn, device, prediction_fn)
+                                test(loader_val, model, loss_fn, device, prediction_fn)
                     val_losses.append(val_loss); val_accs.append(val_acc)
                     log_args = [epoch, train_acc, test_acc, val_acc, val_loss]
                 else:
@@ -174,7 +174,7 @@ def train_loader_inductive(
     return train_losses, train_accs, test_losses, test_accs, val_losses, val_accs
                 
     
-def test_loader_inductive(loader, model, loss_fn, device, prediction_fn=None, n_iters = None):
+def test(loader, model, loss_fn, device, prediction_fn=None, n_iters=None):
 
     model.eval()
     losses = []; accs = []
@@ -206,7 +206,7 @@ def test_loader_inductive(loader, model, loss_fn, device, prediction_fn=None, n_
     return avg_losses, avg_accs
 
 
-def test_ogb(loader, model, loss_fn, device, evaluator, n_iters = None):
+def test_ogb(loader, model, loss_fn, device, evaluator, n_iters=None):
     
     model.eval()
     y_true = []
@@ -257,3 +257,21 @@ def test_ogb(loader, model, loss_fn, device, evaluator, n_iters = None):
     input_dict = {"y_true": y_true, "y_pred": y_pred}
     
     return sum(losses)/len(loader.dataset), evaluator.eval(input_dict)[evaluator.eval_metric]
+
+
+def test_isomorphism(loader, model, device, p=2, eps=1e-2):
+
+    model.eval()
+    y = None
+    with torch.no_grad():
+        for data in loader:
+            data = data.to(device)
+            y = torch.cat((y, model(data)), 0) if y is not None else model(data)
+
+    mm = torch.pdist(y, p=p)
+    num_not_distinguished = (mm < eps).sum().item()
+
+    # inds = np.where((squareform(mm.cpu().numpy()) + np.diag(np.ones(y.shape[0]))) < eps)
+    # print('Non-isomorphic pairs that are not distinguised: {}'.format(inds))
+
+    return mm, num_not_distinguished

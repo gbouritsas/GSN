@@ -6,8 +6,6 @@ from utils_graph_learning import central_encoder
 
 import torch.nn.functional as F
 
-
-
 class GSN_edge_sparse_ogb(nn.Module):
     
     def __init__(self,
@@ -33,7 +31,6 @@ class GSN_edge_sparse_ogb(nn.Module):
 
         super(GSN_edge_sparse_ogb, self).__init__()
         
-
         self.flow = flow
         self.aggr = aggr
         self.msg_kind = msg_kind
@@ -63,7 +60,6 @@ class GSN_edge_sparse_ogb(nn.Module):
 
         return
 
-
     def forward(self, x, edge_index, **kwargs):
         
         # prepare input features
@@ -76,21 +72,18 @@ class GSN_edge_sparse_ogb(nn.Module):
         edge_features = kwargs['edge_features']
         edge_features = edge_features.unsqueeze(-1) if edge_features.dim() == 1 else edge_features
             
-        self.n_nodes = x.shape[0]
-            
         if self.id_scope == 'global':
             self_msg = x + identifiers
         else:
             self_msg = x
 
-        out = self.update_fn((1 + self.eps) * self_msg + self.propagate(edge_index=edge_index, x=x,
+        out = self.update_fn((1 + self.eps) * self_msg + self.propagate(edge_index=edge_index,
+                                                                        x=x,
                                                                         identifiers=identifiers,
                                                                         edge_features=edge_features))
         return out
-
     
     def propagate(self, edge_index, x, identifiers, edge_features):
-        
         
         select = 0 if self.flow == 'target_to_source' else 1 
         aggr_dim = 1 - select
@@ -105,8 +98,9 @@ class GSN_edge_sparse_ogb(nn.Module):
             identifiers_ij = None
             identifiers_i, identifiers_j = identifiers[edge_index_i, :], identifiers[edge_index_j, :]
         
+        n_nodes = x.shape[0]
         msgs = self.message(x_i, x_j, identifiers_i, identifiers_j, identifiers_ij, edge_features)
-        msgs = torch.sparse.FloatTensor(edge_index, msgs, torch.Size([self.n_nodes, self.n_nodes, msgs.shape[1]]))
+        msgs = torch.sparse.FloatTensor(edge_index, msgs, torch.Size([n_nodes, n_nodes, msgs.shape[1]]))
         
         if self.aggr == 'add':
             message = torch.sparse.sum(msgs, aggr_dim).to_dense()
@@ -121,10 +115,8 @@ class GSN_edge_sparse_ogb(nn.Module):
             raise NotImplementedError("Aggregation kind {} is not currently supported.".format(self.aggr))
         
         return message
-        
 
     def message(self, x_i, x_j, identifiers_i, identifiers_j, identifiers_ij, edge_features):
-        
         
         if self.msg_kind == 'ogb':
             if self.id_scope == 'global':
@@ -136,7 +128,7 @@ class GSN_edge_sparse_ogb(nn.Module):
             
         return msg_j
     
-#     def __repr__(self):
-#         return '{}(msg_fn = {}, update_fn = {})'.format(self.__class__.__name__, self.msg_fn, self.update_fn)
+    def __repr__(self):
+        return '{}(msg_fn = {}, update_fn = {})'.format(self.__class__.__name__, self.msg_fn, self.update_fn)
 
 

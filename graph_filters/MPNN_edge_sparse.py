@@ -5,7 +5,6 @@ from torch_geometric.utils import degree, is_undirected
 from models_misc import mlp
 from utils_graph_learning import central_encoder
 
-
 class MPNN_edge_sparse(nn.Module):
     
     def __init__(self,
@@ -61,19 +60,30 @@ class MPNN_edge_sparse(nn.Module):
 
         elif msg_kind == 'general':
             msg_input_dim = 2 * d_in + d_ef
-            self.msg_fn = mlp( msg_input_dim, d_msg, d_h, seed, activation_name, bn)
+            self.msg_fn = mlp(
+                            msg_input_dim,
+                            d_msg,
+                            d_h,
+                            seed,
+                            activation_name,
+                            bn)
             update_input_dim = d_in + d_msg
             
-        self.update_fn = mlp( update_input_dim, d_up, d_h, seed, activation_name, bn)
+        self.update_fn = mlp(
+                            update_input_dim,
+                            d_up,
+                            d_h,
+                            seed,
+                            activation_name,
+                            bn)
 
         return
 
-
     def forward(self, x, edge_index, **kwargs):
         
-
         # prepare input features
         x = x.unsqueeze(-1) if x.dim() == 1 else x
+
         degrees = kwargs['degrees']
         degrees = degrees.unsqueeze(-1) if degrees.dim() == 1 else degrees
         if self.degree_as_tag:
@@ -82,11 +92,11 @@ class MPNN_edge_sparse(nn.Module):
         edge_features = kwargs['edge_features']
         edge_features = edge_features.unsqueeze(-1) if edge_features.dim() == 1 else edge_features
             
-        self.n_nodes = x.shape[0]
+        n_nodes = x.shape[0]
         
         if self.msg_kind == 'gin':
             
-            edge_features_ii, edge_features = self.central_node_edge_encoder(edge_features, self.n_nodes)
+            edge_features_ii, edge_features = self.central_node_edge_encoder(edge_features, n_nodes)
             self_msg = torch.cat((x, edge_features_ii), -1)
                 
             out = self.update_fn((1 + self.eps) * self_msg + 
@@ -96,19 +106,18 @@ class MPNN_edge_sparse(nn.Module):
                 out = self.update_fn(torch.cat((x, self.propagate(edge_index=edge_index, x=x,  edge_features=edge_features)), -1))
 
         return out
-
     
     def propagate(self, edge_index, x, edge_features):
         
-        
         select = 0 if self.flow == 'target_to_source' else 1 
         aggr_dim = 1 - select
+        n_nodes = x.shape[0]
         
         edge_index_i, edge_index_j = edge_index[select, :], edge_index[1 - select, :]
         x_i, x_j = x[edge_index_i, :], x[edge_index_j, :]
         
         msgs = self.message(x_i, x_j, edge_features)
-        msgs = torch.sparse.FloatTensor(edge_index, msgs, torch.Size([self.n_nodes, self.n_nodes, msgs.shape[1]]))
+        msgs = torch.sparse.FloatTensor(edge_index, msgs, torch.Size([n_nodes, n_nodes, msgs.shape[1]]))
         
         if self.aggr == 'add':
             message = torch.sparse.sum(msgs, aggr_dim).to_dense()
@@ -123,10 +132,8 @@ class MPNN_edge_sparse(nn.Module):
             raise NotImplementedError("Aggregation kind {} is not currently supported.".format(self.aggr))
         
         return message
-        
 
     def message(self, x_i, x_j, edge_features):
-        
         
         if self.msg_kind == 'gin':
             msg_j = torch.cat((x_j, edge_features), -1)
@@ -138,7 +145,7 @@ class MPNN_edge_sparse(nn.Module):
             
         return msg_j
     
-#     def __repr__(self):
-#         return '{}(msg_fn = {}, update_fn = {})'.format(self.__class__.__name__, self.msg_fn, self.update_fn)
+    def __repr__(self):
+        return '{}(msg_fn = {}, update_fn = {})'.format(self.__class__.__name__, self.msg_fn, self.update_fn)
 
 

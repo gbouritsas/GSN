@@ -19,8 +19,8 @@ class MPNN_sparse(nn.Module):
                  bn,
                  aggr='add',
                  msg_kind='general',
-                 eps = 0,
-                 train_eps = False,
+                 eps=0,
+                 train_eps=False,
                  flow='source_to_target',
                  **kwargs):
 
@@ -70,7 +70,6 @@ class MPNN_sparse(nn.Module):
 
         return
     
-    
     def forward(self, x, edge_index, **kwargs):
 
         # prepare input features
@@ -88,19 +87,18 @@ class MPNN_sparse(nn.Module):
             out = self.update_fn(torch.cat((x, self.propagate(edge_index=edge_index, x=x)), -1))
 
         return out
-
     
     def propagate(self, edge_index, x):
         
         select = 0 if self.flow == 'target_to_source' else 1 
         aggr_dim = 1 - select
-        self.n_nodes = x.shape[0]
+        n_nodes = x.shape[0]
         
         edge_index_i, edge_index_j = edge_index[select, :], edge_index[1 - select, :]
         x_i, x_j = x[edge_index_i, :], x[edge_index_j, :]
         
         msgs = self.message(x_i, x_j)
-        msgs = torch.sparse.FloatTensor(edge_index, msgs, torch.Size([self.n_nodes, self.n_nodes, msgs.shape[1]]))
+        msgs = torch.sparse.FloatTensor(edge_index, msgs, torch.Size([n_nodes, n_nodes, msgs.shape[1]]))
         
         if self.aggr == 'add':
             message = torch.sparse.sum(msgs, aggr_dim).to_dense()
@@ -109,14 +107,12 @@ class MPNN_sparse(nn.Module):
             degrees = degree(edge_index[select])
             degrees[degrees==0.0] = 1.0
             message = torch.sparse.sum(msgs, aggr_index).to_dense()
-            message = message / degrees
+            message = message / degrees.unsqueeze(1)
         
         else:
             raise NotImplementedError("Aggregation kind {} is not currently supported.".format(self.aggr))
         
         return message
-        
-
     
     def message(self, x_i, x_j):
             

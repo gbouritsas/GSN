@@ -5,8 +5,6 @@ from torch_geometric.utils import degree
 from models_misc import mlp
 from utils_graph_learning import central_encoder
 
-
-
 class GSN_edge_sparse(nn.Module):
     
     def __init__(self,
@@ -32,7 +30,6 @@ class GSN_edge_sparse(nn.Module):
 
         super(GSN_edge_sparse, self).__init__()
         
-
         d_msg = d_in if d_msg is None else d_msg
 
         self.flow = flow
@@ -82,7 +79,6 @@ class GSN_edge_sparse(nn.Module):
 
         return
 
-
     def forward(self, x, edge_index, **kwargs):
         
         x = x.unsqueeze(-1) if x.dim() == 1 else x
@@ -94,33 +90,33 @@ class GSN_edge_sparse(nn.Module):
         edge_features = kwargs['edge_features']
         edge_features = edge_features.unsqueeze(-1) if edge_features.dim() == 1 else edge_features
             
-        self.n_nodes = x.shape[0]
+        n_nodes = x.shape[0]
         
         if self.msg_kind == 'gin':
             
-            edge_features_ii, edge_features = self.central_node_edge_encoder(edge_features, self.n_nodes)
+            edge_features_ii, edge_features = self.central_node_edge_encoder(edge_features, n_nodes)
         
             if self.id_scope == 'global':
                 identifiers_ii = identifiers
             else:
-                identifiers_ii, identifiers = self.central_node_id_encoder(identifiers, self.n_nodes)
+                identifiers_ii, identifiers = self.central_node_id_encoder(identifiers, n_nodes)
                 
             self_msg = torch.cat((x, identifiers_ii, edge_features_ii), -1)
                 
-            out = self.update_fn((1 + self.eps) * self_msg + self.propagate(edge_index=edge_index, x=x,
+            out = self.update_fn((1 + self.eps) * self_msg + self.propagate(edge_index=edge_index,
+                                                                            x=x,
                                                                             identifiers=identifiers,
                                                                             edge_features=edge_features))
                            
         elif self.msg_kind == 'general':
-                out = self.update_fn(torch.cat((x, self.propagate(edge_index=edge_index, x=x, 
+                out = self.update_fn(torch.cat((x, self.propagate(edge_index=edge_index,
+                                                                  x=x, 
                                                                   identifiers=identifiers, 
                                                                   edge_features=edge_features)), -1))
 
         return out
 
-    
-    def propagate(self, edge_index, x, identifiers, edge_features):
-        
+    def propagate(self, edge_index, x, identifiers, edge_features):        
         
         select = 0 if self.flow == 'target_to_source' else 1 
         aggr_dim = 1 - select
@@ -135,8 +131,9 @@ class GSN_edge_sparse(nn.Module):
             identifiers_ij = None
             identifiers_i, identifiers_j = identifiers[edge_index_i, :], identifiers[edge_index_j, :]
         
+        n_nodes = x.shape[0]
         msgs = self.message(x_i, x_j, identifiers_i, identifiers_j, identifiers_ij, edge_features)
-        msgs = torch.sparse.FloatTensor(edge_index, msgs, torch.Size([self.n_nodes, self.n_nodes, msgs.shape[1]]))
+        msgs = torch.sparse.FloatTensor(edge_index, msgs, torch.Size([n_nodes, n_nodes, msgs.shape[1]]))
         
         if self.aggr == 'add':
             message = torch.sparse.sum(msgs, aggr_dim).to_dense()
@@ -152,9 +149,7 @@ class GSN_edge_sparse(nn.Module):
         
         return message
         
-
     def message(self, x_i, x_j, identifiers_i, identifiers_j, identifiers_ij, edge_features):
-        
         
         if self.msg_kind == 'gin':
             if self.id_scope == 'global':
@@ -174,7 +169,7 @@ class GSN_edge_sparse(nn.Module):
             
         return msg_j
     
-#     def __repr__(self):
-#         return '{}(msg_fn = {}, update_fn = {})'.format(self.__class__.__name__, self.msg_fn, self.update_fn)
+    def __repr__(self):
+        return '{}(msg_fn = {}, update_fn = {})'.format(self.__class__.__name__, self.msg_fn, self.update_fn)
 
 

@@ -7,30 +7,20 @@ import graph_tool as gt
 import graph_tool.topology as gt_topology
 
 
-def edge_automorphism_orbits(named_graph, k, edge_list = None):
+def edge_automorphism_orbits(edge_list):
     
     ##### edge automorphism orbits according to the line graph #####
-    
-    # create the graph object
-    if named_graph is not None:
-        graph_nx = getattr(nx, named_graph)(k)
-        graph = gt.Graph(directed=False)
-        graph.add_edge_list(list(graph_nx.edges))
-    elif edge_list is not None:
-        graph_nx = nx.from_edgelist(edge_list)
-        graph = gt.Graph(directed=False)
-        graph.add_edge_list(edge_list)
-    else:
-        raise Exception('Either the name of the subgraph or an edge list needs to be provided')
 
+    graph_nx = nx.from_edgelist(edge_list)
+    graph = gt.Graph(directed=False)
+    graph.add_edge_list(edge_list)
     gt.stats.remove_self_loops(graph)
-    gt.stats.remove_parallel_edges(graph)  
-
-    # compute all vertex automorphisms
+    gt.stats.remove_parallel_edges(graph)
     aut_group = gt_topology.subgraph_isomorphism(graph, graph, induced=False, subgraph=True, generator=False)
     aut_count = len(aut_group)
     
     ##### compute line graph vertex automorphism orbits #####
+
     graph_nx_line = nx.line_graph(graph_nx)
     mapping = {node: i for i,node in enumerate(graph_nx_line.nodes)}
     inverse_mapping = {i: node for i,node in enumerate(graph_nx_line.nodes)}
@@ -39,17 +29,14 @@ def edge_automorphism_orbits(named_graph, k, edge_list = None):
     line_graph = gt.Graph(directed=False)
     line_graph.add_edge_list(list(graph_nx_line.edges))
 
-
     gt.stats.remove_self_loops(line_graph)
     gt.stats.remove_parallel_edges(line_graph)  
 
     aut_group_edges = gt_topology.subgraph_isomorphism(line_graph, line_graph, induced=False, subgraph=True, generator=False)
 
-
     orbit_membership = {}
     for v in line_graph.get_vertices():
         orbit_membership[v] = v
-
 
     for aut in aut_group_edges:
         for original, vertex in enumerate(aut):
@@ -70,28 +57,25 @@ def edge_automorphism_orbits(named_graph, k, edge_list = None):
         orbit_partition[orbit] = [inverse_mapping[vertex]] if orbit not in orbit_partition else orbit_partition[orbit]+[inverse_mapping[vertex]]    
 
     ##### transfer line graph vertex automorphism orbits to original edges #####
+
     orbit_membership_new = {}
     for i,edge in enumerate(graph.get_edges()): 
         mapped_edge = mapping[tuple(edge)] if tuple(edge) in mapping else mapping[tuple([edge[1],edge[0]])]
         orbit_membership_new[i] = orbit_membership[mapped_edge]
 
-
     print('Edge orbit partition of given substructure: {}'.format(orbit_partition)) 
     print('Number of edge orbits: {}'.format(len(orbit_partition)))
     print('Graph (vertex) automorphism count: {}'.format(aut_count))
     
-    
     return graph, orbit_partition, orbit_membership_new, aut_count
 
-def induced_edge_automorphism_orbits(named_graph, k, edge_list = None):
+
+def induced_edge_automorphism_orbits(edge_list):
     
     ##### induced edge automorphism orbits (according to the vertex automorphism group) #####
-    
-    # compute all vertex automorphisms
-    graph, orbit_partition, orbit_membership, aut_count = automorphism_orbits(named_graph=named_graph, 
-                                                                                 k=k,
-                                                                                 edge_list=edge_list,
-                                                                                 print_msgs=False)
+
+    graph, orbit_partition, orbit_membership, aut_count = automorphism_orbits(edge_list=edge_list,
+                                                                              print_msgs=False)
     edge_orbit_partition = dict()
     edge_orbit_membership = dict()
     edge_orbits2inds = dict()
@@ -118,27 +102,17 @@ def induced_edge_automorphism_orbits(named_graph, k, edge_list = None):
     print('Number of edge orbits: {}'.format(len(edge_orbit_partition)))
     print('Graph (vertex) automorphism count: {}'.format(aut_count))
     
-    
     return graph, edge_orbit_partition, edge_orbit_membership, aut_count
 
 
-def automorphism_orbits(named_graph, k, edge_list = None, print_msgs=True):
+def automorphism_orbits(edge_list, print_msgs=True):
     
-    
-    ##### vertex automorphism orbits #####
-    
-    if named_graph is not None:
-        graph_nx = getattr(nx, named_graph)(k)
-        graph = gt.Graph(directed=False)
-        graph.add_edge_list(list(graph_nx.edges))
-    elif edge_list is not None:
-        graph = gt.Graph(directed=False)
-        graph.add_edge_list(edge_list)
-    else:
-        raise Exception('Either the name of the subgraph or an edge list needs to be provided')
-            
+    ##### vertex automorphism orbits ##### 
+
+    graph = gt.Graph(directed=False)
+    graph.add_edge_list(edge_list)
     gt.stats.remove_self_loops(graph)
-    gt.stats.remove_parallel_edges(graph)  
+    gt.stats.remove_parallel_edges(graph)
 
     # compute the vertex automorphism group
     aut_group = gt_topology.subgraph_isomorphism(graph, graph, induced=False, subgraph=True, generator=False)
@@ -147,7 +121,6 @@ def automorphism_orbits(named_graph, k, edge_list = None, print_msgs=True):
     for v in graph.get_vertices():
         orbit_membership[v] = v
     
-
     # whenever two nodes can be mapped via some automorphism, they are assigned the same orbit
     for aut in aut_group:
         for original, vertex in enumerate(aut):
@@ -179,11 +152,9 @@ def automorphism_orbits(named_graph, k, edge_list = None, print_msgs=True):
     return graph, orbit_partition, orbit_membership, aut_count
 
 
-
 def subgraph_isomorphism_vertex_counts(edge_index, **kwargs):
     
     ##### vertex structural identifiers #####
-
     
     subgraph_dict, induced, num_nodes = kwargs['subgraph_dict'], kwargs['induced'], kwargs['num_nodes']
     
@@ -253,10 +224,4 @@ def subgraph_isomorphism_edge_counts(edge_index, **kwargs):
     counts = torch.tensor(counts)
     
     return counts
-
-
-
-
-        
-    
-   
+ 

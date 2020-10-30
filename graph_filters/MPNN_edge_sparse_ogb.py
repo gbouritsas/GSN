@@ -7,8 +7,6 @@ from utils_graph_learning import central_encoder
 
 import torch.nn.functional as F
 
-
-
 class MPNN_edge_sparse_ogb(nn.Module):
     
     def __init__(self,
@@ -32,7 +30,6 @@ class MPNN_edge_sparse_ogb(nn.Module):
 
         super(MPNN_edge_sparse_ogb, self).__init__()
         
-
         self.flow = flow
         self.aggr = aggr
         self.msg_kind = msg_kind
@@ -45,6 +42,7 @@ class MPNN_edge_sparse_ogb(nn.Module):
 
         # INPUT_DIMS
         if msg_kind == 'ogb':
+
             self.initial_eps = eps
             if train_eps:
                 self.eps = torch.nn.Parameter(torch.Tensor([eps]))
@@ -53,7 +51,7 @@ class MPNN_edge_sparse_ogb(nn.Module):
             self.eps.data.fill_(self.initial_eps)
             
             update_input_dim = d_in
-            
+
         else:
             raise NotImplementedError('msg kind {} is not currently supported.'.format(msg_kind))
             
@@ -63,7 +61,6 @@ class MPNN_edge_sparse_ogb(nn.Module):
 
     def forward(self, x, edge_index, **kwargs):
         
-
         # prepare input features
         x = x.unsqueeze(-1) if x.dim() == 1 else x
         identifiers, degrees = kwargs['identifiers'], kwargs['degrees']
@@ -73,8 +70,6 @@ class MPNN_edge_sparse_ogb(nn.Module):
             
         edge_features = kwargs['edge_features']
         edge_features = edge_features.unsqueeze(-1) if edge_features.dim() == 1 else edge_features
-            
-        self.n_nodes = x.shape[0]    
             
         self_msg = x
         out = self.update_fn((1 + self.eps) * self_msg + self.propagate(edge_index=edge_index, x=x,
@@ -92,8 +87,9 @@ class MPNN_edge_sparse_ogb(nn.Module):
         edge_index_i, edge_index_j = edge_index[select, :], edge_index[1 - select, :]
         x_i, x_j = x[edge_index_i, :], x[edge_index_j, :]
         
+        n_nodes = x.shape[0]
         msgs = self.message(x_i, x_j, edge_features)
-        msgs = torch.sparse.FloatTensor(edge_index, msgs, torch.Size([self.n_nodes, self.n_nodes, msgs.shape[1]]))
+        msgs = torch.sparse.FloatTensor(edge_index, msgs, torch.Size([n_nodes, n_nodes, msgs.shape[1]]))
         
         if self.aggr == 'add':
             message = torch.sparse.sum(msgs, aggr_dim).to_dense()
@@ -108,10 +104,8 @@ class MPNN_edge_sparse_ogb(nn.Module):
             raise NotImplementedError("Aggregation kind {} is not currently supported.".format(self.aggr))
         
         return message
-        
 
     def message(self, x_i, x_j, edge_features):
-        
         
         if self.msg_kind == 'ogb':
             msg_j = F.relu(x_j + edge_features)
@@ -120,7 +114,7 @@ class MPNN_edge_sparse_ogb(nn.Module):
             
         return msg_j
     
-#     def __repr__(self):
-#         return '{}(msg_fn = {}, update_fn = {})'.format(self.__class__.__name__, self.msg_fn, self.update_fn)
+    def __repr__(self):
+        return '{}(update_fn = {})'.format(self.__class__.__name__, self.update_fn)
 
 

@@ -4,14 +4,14 @@ import torch.nn as nn
 from torch_geometric.utils import degree
 
 from models_misc import mlp
-from ogb.graphproppred.mol_encoder import AtomEncoder,BondEncoder
+from ogb.graphproppred.mol_encoder import AtomEncoder, BondEncoder
 from ogb.utils.features import get_atom_feature_dims, get_bond_feature_dims 
-
-
 
 
 def multi_class_accuracy(y_hat, y, reduction='sum'):
     
+    # TODO: check why we do this [1] here
+    import pdb; pdb.set_trace()
     pred = y_hat.max(1)[1]
     if reduction == 'sum':
         acc = pred.eq(y).sum().float()
@@ -22,18 +22,39 @@ def multi_class_accuracy(y_hat, y, reduction='sum'):
     return acc
 
 
+def global_add_pool_sparse(x, batch):
+    
+    #-------------- global sum pooling
+    index = torch.stack([batch, torch.tensor(list(range(batch.shape[0])), device=x.device)], 0)  
+    x_sparse = torch.sparse.FloatTensor(index, x, torch.Size([torch.max(batch)+1, x.shape[0], x.shape[1]]))
+        
+    return torch.sparse.sum(x_sparse, 1).to_dense()
+
+
+def global_mean_pool_sparse(x, batch):
+    
+    #-------------- global average pooling
+    index = torch.stack([batch, torch.tensor(list(range(batch.shape[0])), device=x.device)], 0)  
+    x_sparse = torch.sparse.FloatTensor(index, x, torch.Size([torch.max(batch)+1, x.shape[0], x.shape[1]]))
+
+    graph_sizes = degree(batch).float()
+    graph_sizes[graph_sizes==0.0] = 1.0
+
+    return torch.sparse.sum(x_sparse, 1).to_dense() / graph_sizes.unsqueeze(1)
+
+
 class DiscreteEmbedding(torch.nn.Module):
+
     def __init__(self, encoder_name, d_in_features, d_in_encoder, d_out_encoder, **kwargs):
 
         super(DiscreteEmbedding, self).__init__()
         
         #-------------- various different embedding layers
-        
         kwargs['init'] = None if 'init' not in kwargs else kwargs['init']
     
         self.encoder_name = encoder_name
         # d_in_features: input feature size (e.g. if already one hot encoded), 
-        # d_in_encoder: number of unique values that will be encoded
+        # d_in_encoder: number of unique values that will be encoded (size of embedding vocabulary)
         
         #-------------- fill embedding with zeros
         if encoder_name == 'zero_encoder':
@@ -47,8 +68,12 @@ class DiscreteEmbedding(torch.nn.Module):
 
         #-------------- mlp
         elif encoder_name == 'mlp':
-            self.encoder = mlp(d_in_features, d_out_encoder, 
-                                          d_out_encoder, kwargs['seed'], kwargs['activation_mlp'], kwargs['bn_mlp'])
+            self.encoder = mlp(d_in_features,
+                               d_out_encoder,           
+                               d_out_encoder,
+                               kwargs['seed'],
+                               kwargs['activation_mlp'],
+                               kwargs['bn_mlp'])
             d_out = d_out_encoder
 
         #-------------- multi hot encoding of categorical data
@@ -60,14 +85,14 @@ class DiscreteEmbedding(torch.nn.Module):
         elif encoder_name == 'embedding':
             self.encoder = multi_embedding(d_in_encoder, d_out_encoder, kwargs['aggr'], kwargs['init'])
             if kwargs['aggr'] == 'concat':
-                d_out = len(d_in_encoder)*d_out_encoder
+                d_out = len(d_in_encoder) * d_out_encoder
             else:
                 d_out = d_out_encoder
                 
         #-------------- for ogb: multi hot encoding of node features
         elif encoder_name == 'atom_one_hot_encoder':
             full_atom_feature_dims = get_atom_feature_dims() if kwargs['features_scope'] == 'full' else get_atom_feature_dims()[:2]
-            self.encoder  = one_hot_encoder(full_atom_feature_dims)
+            self.encoder = one_hot_encoder(full_atom_feature_dims)
             d_out = sum(full_atom_feature_dims)
         
         #-------------- for ogb: multi hot encoding of edge features
@@ -97,9 +122,7 @@ class DiscreteEmbedding(torch.nn.Module):
         self.d_out = d_out
         
         return
-    
-    
-    
+
     def forward(self, x):
         
         x = x.unsqueeze(-1) if x.dim() == 1 else x
@@ -108,6 +131,7 @@ class DiscreteEmbedding(torch.nn.Module):
             return self.encoder(x)
         else:
             return x.float()    
+
 
 class multi_embedding(torch.nn.Module):
     
@@ -129,7 +153,6 @@ class multi_embedding(torch.nn.Module):
                 torch.nn.init.xavier_uniform_(self.encoder[-1].weight.data)
         self.encoder = nn.ModuleList(self.encoder)   
         
-        
         return 
 
     def forward(self, tensor):
@@ -146,7 +169,6 @@ class multi_embedding(torch.nn.Module):
         return embedding
 
 
-
 class one_hot_encoder(torch.nn.Module):
     
     def __init__(self, d_in):
@@ -160,15 +182,16 @@ class one_hot_encoder(torch.nn.Module):
     def forward(self, tensor):
         
         for i in range(tensor.shape[1]):
-            onehot_i = torch.zeros((tensor.shape[0], self.d_in[i]), device = tensor.device)
+            onehot_i = torch.zeros((tensor.shape[0], self.d_in[i]), device=tensor.device)
             onehot_i.scatter_(1, tensor[:,i:i+1], 1)
-            onehot = torch.cat((onehot, onehot_i),1) if i>0 else onehot_i
+            onehot = torch.cat((onehot, onehot_i), 1) if i>0 else onehot_i
         
         return onehot
     
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__, self.d_in)
     
+
 class zero_encoder(torch.nn.Module):
     
     def __init__(self, d_out):
@@ -185,26 +208,6 @@ class zero_encoder(torch.nn.Module):
     
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__, self.d_out) 
-   
-    
-def global_add_pool_sparse(x, batch):
-    
-    #-------------- global sum pooling
-    index = torch.stack([batch, torch.tensor(list(range(batch.shape[0])), device=x.device)], 0)  
-    x_sparse = torch.sparse.FloatTensor(index, x, torch.Size([torch.max(batch)+1, x.shape[0], x.shape[1]]))
-        
-    return torch.sparse.sum(x_sparse, 1).to_dense()
-
-def global_mean_pool_sparse(x, batch):
-    
-    #-------------- global average pooling
-    index = torch.stack([batch, torch.tensor(list(range(batch.shape[0])), device=x.device)], 0)  
-    x_sparse = torch.sparse.FloatTensor(index, x, torch.Size([torch.max(batch)+1, x.shape[0], x.shape[1]]))
-
-    graph_sizes = degree(batch).float()
-    graph_sizes[graph_sizes==0.0] = 1.0
-
-    return torch.sparse.sum(x_sparse, 1).to_dense() / graph_sizes.unsqueeze(1)
 
 
 class central_encoder(nn.Module):
@@ -218,7 +221,6 @@ class central_encoder(nn.Module):
         #-------------- Useful when working with edge features or GSN-e
         #-------------- Two ways are allowed: extra dummy variable (one hot or embedding) or a vector filled with zeros
         
-            
         self.extend = extend
         self.nb_encoder = nb_encoder
         
@@ -240,7 +242,6 @@ class central_encoder(nn.Module):
             
         return
 
-    
     def forward(self, x_nb, num_nodes):
         
         if 'one_hot_encoder' in self.nb_encoder:

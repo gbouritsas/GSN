@@ -5,8 +5,6 @@ from torch_geometric.utils import degree, is_undirected
 from models_misc import mlp
 from utils_graph_learning import central_encoder
 
-
-
 class GSN_sparse(nn.Module):
     
     def __init__(self,
@@ -46,7 +44,8 @@ class GSN_sparse(nn.Module):
             d_in = d_in + d_degree if retain_features else d_degree
 
         # different GSN variants: extended gin and general formulation (see supplementary material)
-        if msg_kind in ['gin']:
+        if self.msg_kind == 'gin':
+
             if self.id_scope == 'local':
                 # dummy variable for central node
                 self.central_node_id_encoder = central_encoder(kwargs['id_embedding'], d_id, extend=kwargs['extend_dims'])
@@ -81,7 +80,6 @@ class GSN_sparse(nn.Module):
         else:
             raise NotImplementedError('msg kind {} is not currently supported.'.format(msg_kind))
             
-            
         self.update_fn = mlp(
             update_input_dim,
             d_up,
@@ -89,10 +87,8 @@ class GSN_sparse(nn.Module):
             seed,
             activation_name,
             bn)
-        
 
         return
-
 
     def forward(self, x, edge_index, **kwargs):
         
@@ -102,23 +98,23 @@ class GSN_sparse(nn.Module):
         degrees = degrees.unsqueeze(-1) if degrees.dim() == 1 else degrees
         if self.degree_as_tag:
             x = torch.cat([x, degrees], -1) if self.retain_features else degrees
-            
         
-        self.n_nodes = x.shape[0]
+        n_nodes = x.shape[0]
         if self.msg_kind == 'gin':
             if self.id_scope == 'global':
-                identifiers_ii, identifiers = self.central_node_id_encoder(identifiers, 
-                                                                           self.n_nodes)
+                identifiers_ii == identifiers
             else:
-                identifiers_ii, identifiers = self.central_node_id_encoder(identifiers, 
-                                                           self.n_nodes)
+                identifiers_ii, identifiers = self.central_node_id_encoder(identifiers, n_nodes)
             self_msg = torch.cat((x, identifiers_ii), -1)
                 
             out = self.update_fn((1 + self.eps) * self_msg + 
                                  self.propagate(edge_index=edge_index, x=x, identifiers=identifiers)) 
                 
         elif self.msg_kind == 'general':
-                out = self.update_fn(torch.cat((x, self.propagate(edge_index=edge_index, x=x, identifiers=identifiers)), -1))
+            out = self.update_fn(torch.cat((x, self.propagate(edge_index=edge_index, x=x, identifiers=identifiers)), -1))
+        
+        else:
+            raise NotImplementedError("Message kind {} is not currently supported.".format(self.msg_kind))
 
         return out
 
@@ -139,8 +135,9 @@ class GSN_sparse(nn.Module):
             identifiers_ij = None
             identifiers_i, identifiers_j = identifiers[edge_index_i, :], identifiers[edge_index_j, :]
         
+        n_nodes = x.shape[0]
         msgs = self.message(x_i, x_j, identifiers_i, identifiers_j, identifiers_ij)
-        msgs = torch.sparse.FloatTensor(edge_index, msgs, torch.Size([self.n_nodes, self.n_nodes, msgs.shape[1]]))
+        msgs = torch.sparse.FloatTensor(edge_index, msgs, torch.Size([n_nodes, n_nodes, msgs.shape[1]]))
         
         if self.aggr == 'add':
             message = torch.sparse.sum(msgs, aggr_dim).to_dense()
