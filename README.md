@@ -1,8 +1,8 @@
 # Improving Graph Neural Network Expressivity via Subgraph Isomorphism Counting
 
 Official PyTorch implementation of the paper:  
-**Improving Graph Neural Network Expressivity via Subgraph Isomorphism Counting**. 
-Giorgos Bouritsas, Fabrizio Frasca, Stefanos Zafeiriou, Michael M. Bronstein. 
+**Improving Graph Neural Network Expressivity via Subgraph Isomorphism Counting**. \
+Giorgos Bouritsas, Fabrizio Frasca, Stefanos Zafeiriou, Michael M. Bronstein. \
 https://arxiv.org/abs/2006.09252
 
 tl;dr: We provably improve GNN expressivity by enhancing message passing with substructure encodings. Our method allows incorporating domain specific prior knowledge and can be used as a drop-in replacement of traditional GNN layers in order to boost their performance in a variety of applications (molecules, social networks, etc.)
