@@ -74,7 +74,7 @@ We provide three main functionalities in order to define the substructures that 
 
 Other important command line arguments: *--induced*: set to True for graphlets, False for motifs, *--id_scope*: set to local for GSN-e (edge counts), global for GSN-v (vertex counts)
 
-### Graph Isomoprhism Testing:
+### Graph Isomoprhism Testing
 
 In this repository, we provide an exemplary family of Strongly Regular (SR) graphs, i.e. SR(25,12,5,6). The rest of the SR families can be downloaded from here: http://users.cecs.anu.edu.au/~bdm/data/graphs.html . In the paper we used SR graphs of size up to 35.  By running the command below you can run an isomorphism test with GSN (with random weights) that will try to distinguish all available pairs from the family. Other substructure configurations can be tested, e.g. by setting --id_type to path_graph, complete_graph, etc., --induced to True or False (graphlets vs. motifs), --k to any positive integer number to define the size of the largest substructure, --id_scope to local or global (GSN-e vs GSN-v).
 
@@ -139,6 +139,8 @@ By following the instructions above to train our models on each of the datasets,
 The rest of the results reported in the main paper can be obtained accordingly, i.e. by changing the hyperparameters as per the supplementary material.
 
 ## Citation
+
+If you find our work useful for your research, please consider citing us:
 
 ```
 @article{bouritsas2020improving,
