@@ -1,7 +1,34 @@
 # Improving Graph Neural Network Expressivity via Subgraph Isomorphism Counting
 
-Code submission - paper under review
+Official PyTorch implementation of the paper
 
+**Improving Graph Neural Network Expressivity via Subgraph Isomorphism Counting**
+Giorgos Bouritsas, Fabrizio Frasca, Stefanos Zafeiriou, Michael M. Bronstein
+[arxiv_link](https://arxiv.org/abs/2006.09252)
+
+tl;dr: We provably improve GNN expressivity by enhancing message passing with substructure encodings. Our method allows incorporating domain specific prior knowledge and can be used as a drop-in replacement of traditional GNN layers in order to boost their performance in a variety of applications (molecules, social networks, etc.)
+
+![paper figure](images/matching_orbits.png)
+
+**Abstract**: While Graph Neural Networks (GNNs) have achieved remarkable results in a
+variety of applications, recent studies exposed important shortcomings in their
+ability to capture the structure of the underlying graph. It has been shown that
+the expressive power of standard GNNs is bounded by the Weisfeiler-Lehman
+(WL) graph isomorphism test, from which they inherit proven limitations such
+as the inability to detect and count graph substructures. On the other hand, there
+is significant empirical evidence, e.g. in network science and bioinformatics,
+that substructures are often informative for downstream tasks, suggesting that
+it is desirable to design GNNs capable of leveraging this important source of
+information. To this end, we propose a novel topologically-aware message passing
+scheme based on substructure encoding. We show that our architecture allows
+incorporating domain-specific inductive biases and that it is strictly more expressive
+than the WL test. Importantly, in contrast to recent works on the expressivity
+of GNNs, we do not attempt to adhere to the WL hierarchy; this allows us to
+retain multiple attractive properties of standard GNNs such as locality and linear
+network complexity, while being able to disambiguate even hard instances of graph
+isomorphism. We extensively evaluate our method on graph classification and
+regression tasks and show state-of-the-art results on multiple datasets including
+molecular graphs and social networks.
 
 ## Dependencies and Installation Instructions
 
@@ -18,8 +45,8 @@ Requirements:
 
 Recommended setup installations
 ```
-conda create --name neurips2020 python=3.7
-conda activate neurips2020
+conda create --name gsn python=3.7
+conda activate gsn
 conda install pytorch==1.4.0 cudatoolkit=10.1 -c pytorch
 pip install torch-scatter==latest+cu101 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
 pip install torch-sparse==latest+cu101 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
