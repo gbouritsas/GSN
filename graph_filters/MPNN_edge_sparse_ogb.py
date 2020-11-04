@@ -22,7 +22,7 @@ class MPNN_edge_sparse_ogb(nn.Module):
                  activation_name,
                  bn,
                  aggr='add',
-                 msg_kind='general',
+                 msg_kind='ogb',
                  eps=0,
                  train_eps=False,
                  flow='source_to_target',

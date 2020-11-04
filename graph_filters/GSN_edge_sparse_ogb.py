@@ -23,7 +23,7 @@ class GSN_edge_sparse_ogb(nn.Module):
                  activation_name,
                  bn,
                  aggr='add',
-                 msg_kind='general',
+                 msg_kind='ogb',
                  eps=0,
                  train_eps=False,
                  flow='source_to_target',
@@ -129,6 +129,6 @@ class GSN_edge_sparse_ogb(nn.Module):
         return msg_j
     
     def __repr__(self):
-        return '{}(msg_fn = {}, update_fn = {})'.format(self.__class__.__name__, self.msg_fn, self.update_fn)
+        return '{}(update_fn = {})'.format(self.__class__.__name__, self.update_fn)
 
 

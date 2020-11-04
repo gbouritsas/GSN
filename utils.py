@@ -11,6 +11,7 @@ import networkx as nx
 from torch_geometric.data import Data
 import glob
 import re
+import types
 
 def get_custom_edge_list(ks, substructure_type=None, filename=None):
     '''
@@ -22,10 +23,10 @@ def get_custom_edge_list(ks, substructure_type=None, filename=None):
     edge_lists = []
     for k in ks:
         if substructure_type is not None:
-            graph_nx = getattr(nx, substructure_type)(k)
+            graphs_nx = getattr(nx, substructure_type)(k)
         else:
             graphs_nx = nx.read_graph6(os.path.join(filename, 'graph{}c.g6'.format(k)))
-        if type(graphs_nx) is list:
+        if isinstance(graphs_nx, list) or isinstance(graphs_nx, types.GeneratorType):
             edge_lists += [list(graph_nx.edges) for graph_nx in graphs_nx]
         else:
             edge_lists.append(list(graphs_nx.edges))
@@ -56,28 +57,33 @@ def process_arguments(args):
                            'star_graph',
                            'nonisomorphic_trees']:
         args['k'] = args['k'][0]
-        k_max = args['k'][0]
+        k_max = args['k']
         k_min = 2 if args['id_type'] == 'star_graph' else 3
         args['custom_edge_list'] = get_custom_edge_list(list(range(k_min, k_max + 1)), args['id_type'])         
-
-    elif args['id_type'] in ['diamond_graph']:
-        args['k'] = None
-        graph_nx = nx.diamond_graph()
-        args['custom_edge_list'] = [list(graph_nx.edges)]
 
     elif args['id_type'] in ['cycle_graph_chosen_k',
                              'path_graph_chosen_k', 
                              'complete_graph_chosen_k',
                              'binomial_tree_chosen_k',
-                             'star_graph_chosen_k']:
+                             'star_graph_chosen_k',
+                             'nonisomorphic_trees_chosen_k']:
         args['custom_edge_list'] = get_custom_edge_list(args['k'], args['id_type'].replace('_chosen_k',''))
         
     elif args['id_type'] in ['all_simple_graphs']:
         args['k'] = args['k'][0]
-        k_max = args['k'][0]
+        k_max = args['k']
         k_min = 3
-        filename = os.path.join(args['root_folder'], 'synthetic', 'all_simple_graphs')
+        filename = os.path.join(args['root_folder'], 'all_simple_graphs')
         args['custom_edge_list'] = get_custom_edge_list(list(range(k_min, k_max + 1)), filename=filename)
+        
+    elif args['id_type'] in ['all_simple_graphs_chosen_k']:
+        filename = os.path.join(args['root_folder'], 'all_simple_graphs')
+        args['custom_edge_list'] = get_custom_edge_list(args['k'], filename=filename)
+        
+    elif args['id_type'] in ['diamond_graph']:
+        args['k'] = None
+        graph_nx = nx.diamond_graph()
+        args['custom_edge_list'] = [list(graph_nx.edges)]
 
     elif args['id_type'] == 'custom':
         assert args['custom_edge_list'] is not None, "Custom edge list must be provided."
@@ -130,6 +136,12 @@ def process_arguments(args):
     
     # virtual node configuration for ogb datasets
     if args['vn']:
+        
+        if args['d_out_vn_encoder'] is None:
+            args['d_out_vn_encoder'] = args['d_out']
+        else:
+            pass
+        
         if args['d_out_vn'] is None:
             args['d_out_vn'] = [args['d_out'] for _ in range(args['num_layers']-1)]
         else:
@@ -207,11 +219,11 @@ def prepare_dataset(path,
                 data_file = os.path.join(data_folder, '{}_{}.pt'.format(id_type, k))
             maybe_load = True
         else:
-            data_file = None  # we don't save custom datasets
+            data_file = None  # we don't save custom substructure counts
             maybe_load = False
         loaded = False
     else:
-        raise NotImplementedError("Dataset kind {} is not currently supported.".format(dataset))
+        raise NotImplementedError("Dataset family {} is not currently supported.".format(dataset))
 
     # try to load, possibly downgrading
     if maybe_load:
@@ -220,8 +232,12 @@ def prepare_dataset(path,
             graphs_ptg, num_classes, orbit_partition_sizes = load_dataset(data_file)
             loaded = True
 
-        else:  # try downgrading
-            if id_type in ['cycle_graph', 'path_graph', 'star_graph', 'binomial_tree', 'complete_graph']:
+        else:  # try downgrading. Currently works only when for each k there is only one substructure in the family
+            if id_type in ['cycle_graph',
+                           'path_graph',
+                           'complete_graph',
+                           'binomial_tree',
+                           'star_graph']:
                 k_min = 2 if id_type == 'star_graph' else 3
                 succeded, graphs_ptg, num_classes, orbit_partition_sizes = try_downgrading(data_folder, id_type, subgraph_params['induced'], k, k_min)
                 if succeded:  # save the dataset

@@ -10,8 +10,6 @@ from ogb.utils.features import get_atom_feature_dims, get_bond_feature_dims
 
 def multi_class_accuracy(y_hat, y, reduction='sum'):
     
-    # TODO: check why we do this [1] here
-    import pdb; pdb.set_trace()
     pred = y_hat.max(1)[1]
     if reduction == 'sum':
         acc = pred.eq(y).sum().float()

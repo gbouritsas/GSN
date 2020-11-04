@@ -18,7 +18,7 @@ from utils import process_arguments, prepare_dataset
 from utils_data_prep import separate_data, separate_data_given_split
 from utils_encoding import encode
 
-from train_test_funcs_inductive import train, test_isomorphism, test, test_ogb, setup_optimization, resume_training
+from train_test_funcs import train, test_isomorphism, test, test_ogb, setup_optimization, resume_training
 
 from models_graph_classification import GNNSubstructures
 from models_graph_classification_ogb_original import GNN_OGB
@@ -132,12 +132,13 @@ def main(args):
     encoding_parameters = {
         'ids': {
             'bins': args['id_bins'],
+            'strategy': args['id_strategy'],
             'range': args['id_range'],
-            'strategy': args['id_strategy']},
+        },
         'degree': {
             'bins': args['degree_bins'],
-            'range': args['degree_range'],
-            'strategy': args['degree_strategy']}}
+            'strategy': args['degree_strategy'],
+            'range': args['degree_range']}}
     
     print("Encoding substructure counts and degree features... ", end='')
     graphs_ptg, encoder_ids, d_id, encoder_degrees, d_degree = encode(graphs_ptg, 
@@ -145,12 +146,61 @@ def main(args):
                                                                       degree_encoding,
                                                                       **encoding_parameters)
     print("Done.")
+    
+    
+    assert args['mode'] in ['isomorphism_test', 'train','test'], "Unknown mode. Supported options are 'isomorphism_test', 'train','test'"
+    
+    ## ----------------------------------- graph isomorphism testing
+    ##
+    ## We use GSN with random weights, so no training is performed
+    ##
+    
+    if args['mode'] == 'isomorphism_test':
 
+        eps = args['isomorphism_eps']
+        loader = DataLoader(graphs_ptg,
+                            batch_size=args['batch_size'],
+                            shuffle=False,
+                            worker_init_fn=random.seed(args['seed']),
+                            num_workers=args['num_workers'])
+        
+        model = GNNSubstructures(
+            in_features=num_features, 
+            out_features=num_classes, 
+            encoder_ids=encoder_ids,
+            d_in_id=d_id,
+            in_edge_features=num_edge_features,
+            d_in_node_encoder=d_in_node_encoder, 
+            d_in_edge_encoder=d_in_edge_encoder,
+            encoder_degrees=encoder_degrees,
+            d_degree=d_degree,
+            **args)
+        
+        model = model.to(device)
+        print("Instantiated model:\n{}".format(model))
+        
+        # count model params
+        params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print("[info] Total number of parameters is: {}".format(params))
 
+        mm, num_not_distinguished = test_isomorphism(loader, model, device, eps=eps)
+
+        print('Total pairs: {}'.format(len(mm)))
+        print('Number of non-isomorphic pairs that are not distinguised: {}'.format(num_not_distinguished))
+        print('Failure Percentage: {:.2f}%'.format(100 * num_not_distinguished / len(mm)))
+
+        if args['wandb']:
+            wandb.run.summary['num_not_distinguished'] = num_not_distinguished
+            wandb.run.summary['total pairs'] = len(mm)
+            wandb.run.summary['failure_percentage'] = num_not_distinguished / len(mm)
+
+        return
+
+    
     ## ----------------------------------- training
     ##
     ## Unified training code for all the datasets.
-    ## Please use arg 'onesplit' if cross-validation is not required.
+    ## Please use args['onesplit'] = True if cross-validation is not required.
     ##
 
     print("Training starting now...")
@@ -215,14 +265,14 @@ def main(args):
             
         model = Model(
             in_features=num_features, 
-            in_edge_features=num_edge_features,
             out_features=num_classes, 
+            encoder_ids=encoder_ids,
+            d_in_id=d_id,
+            in_edge_features=num_edge_features,
             d_in_node_encoder=d_in_node_encoder, 
             d_in_edge_encoder=d_in_edge_encoder,
-            d_id=d_id,
-            d_degree=d_degree,
-            encoder_ids=encoder_ids,
             encoder_degrees=encoder_degrees,
+            d_degree=d_degree,
             **args)
         model = model.to(device)
         print("Instantiated model:\n{}".format(model))
@@ -240,11 +290,9 @@ def main(args):
             if args['wandb']:
                 wandb.watch(model)
             
-            # resume training?
-            # TODO: let's test the funcionality below, at least once xD
             checkpoint_filename = os.path.join(checkpoint_path, args['checkpoint_file'] + '.pth.tar')
             if args['resume']:
-                start_epoch = resume_training(checkpoint_filename, model, optimizer, scheduler)    
+                start_epoch = resume_training(checkpoint_filename, model, optimizer, scheduler, device)    
             else:
                 start_epoch = 0
                 
@@ -281,30 +329,7 @@ def main(args):
             print("Training complete!")
             print("\tbest train accuracy {:.4f}\n\tbest test accuracy {:.4f}".format(train_accs[best_idx], test_accs[best_idx]))
             
-        # use network with random weights (for untrained graph isomorphism tests)
-        elif args['mode'] == 'isomorphism_test':
-
-            eps = args['isomorphism_eps']
-            loader = DataLoader(graphs_ptg,
-                                batch_size=args['batch_size'],
-                                shuffle=False,
-                                worker_init_fn=random.seed(args['seed']),
-                                num_workers=args['num_workers'])
-
-            mm, num_not_distinguished = test_isomorphism(loader, model, device, eps=eps)
-
-            print('Total pairs: {}'.format(len(mm)))
-            print('Number of non-isomorphic pairs that are not distinguised: {}'.format(num_not_distinguished))
-            print('Failure Percentage: {:.2f}%'.format(100 * num_not_distinguished / len(mm)))
-
-            if args['wandb']:
-                wandb.run.summary['num_not_distinguished'] = num_not_distinguished
-                wandb.run.summary['total pairs'] = len(mm)
-                wandb.run.summary['failure_percentage'] = num_not_distinguished / len(mm)
-
-            return
-            
-        elif args['mode'] == 'test':  # TODO: please test me!
+        elif args['mode'] == 'test': 
 
             checkpoint_filename = os.path.join(checkpoint_path, args['checkpoint_file'] + '.pth.tar')
             print('Loading checkpoint from file {}... '.format(checkpoint_filename), end='')
@@ -321,9 +346,21 @@ def main(args):
 
             train_accs_folds.append(train_acc)
             test_accs_folds.append(test_acc)
+            
+            
+            if dataset_val is not None:
+                if args['dataset'] == 'ogb':
+                    _, val_acc = test(loader_val, model, loss_fn, device, prediction_fn)
+                else:
+                    _, val_acc = test(loader_val, model, loss_fn, device, prediction_fn)
+                val_accs_folds.append(val_acc)
 
             print("Evaluation complete!")
-            print("\ttrain accuracy {:.4f}\n\ttest accuracy {:.4f}".format(train_acc, test_acc))
+            if dataset_val is not None:
+                print("\ttrain accuracy {:.4f}\n\ttest accuracy {:.4f}\n\tvalidation accuracy {:.4f}".format(train_acc, test_acc, val_acc))
+            else:
+                print("\ttrain accuracy {:.4f}\n\ttest accuracy {:.4f}".format(train_acc, test_acc))
+                
 
         else:
 
@@ -420,15 +457,20 @@ def main(args):
         print("Best test mean: {:.4f} +/- {:.4f}".format(test_accs_mean[best_index], test_accs_std[best_index]))
       
 
-    if args['mode'] == 'test':
+    if args['mode'] == 'test' and not args['onesplit']:
 
         train_acc_mean = np.mean(train_accs_folds)
         test_acc_mean = np.mean(test_accs_folds)
         train_acc_std = np.std(train_accs_folds)
         test_acc_std = np.std(test_accs_folds)
-
+        
         print("Train accuracy: {:.4f} +/- {:.4f}".format(train_acc_mean, train_acc_std))
         print("Test accuracy: {:.4f} +/- {:.4f}".format(test_acc_mean, test_acc_std))
+        
+        if dataset_val is not None:
+            val_acc_mean = np.mean(val_accs_folds)
+            val_acc_std = np.std(val_accs_folds)
+            print("Validation accuracy: {:.4f} +/- {:.4f}".format(val_acc_mean, val_acc_std))
 
 
 
@@ -467,6 +509,17 @@ if __name__ == '__main__':
     parser.add_argument('--degree_as_tag', type=parse.str2bool, default=False)
     parser.add_argument('--retain_features', type=parse.str2bool, default=False)
     
+
+    ###### used only for ogb to reproduce the different configurations, 
+    # i.e. additional features (full) or not (simple), virtual node or not (vn: True)
+    parser.add_argument('--features_scope', type=str, default="full")
+    parser.add_argument('--vn', type=parse.str2bool, default=False)
+    # denotes the aggregation used by the virtual node
+    parser.add_argument('--vn_pooling', type=str, default='sum')
+    parser.add_argument('--input_vn_encoder', type=str, default='one_hot_encoder')
+    parser.add_argument('--d_out_vn_encoder', type=int, default=None)
+    parser.add_argument('--d_out_vn', type=int, default=None)
+    
     ###### substructure-related parameters:
     # - id_type: substructure family
     # - induced: graphlets vs motifs
@@ -476,21 +529,24 @@ if __name__ == '__main__':
     parser.add_argument('--id_type', type=str, default='cycle_graph')
     parser.add_argument('--induced', type=parse.str2bool, default=False)
     parser.add_argument('--edge_automorphism', type=str, default='induced')
-    parser.add_argument('--k', type=parse.str2list2int, default=3)
+    parser.add_argument('--k', type=parse.str2list2int, default=[3])
     parser.add_argument('--id_scope', type=str, default='local')
     parser.add_argument('--custom_edge_list', type=parse.str2ListOfListsOfLists2int, default=None)
-    parser.add_argument('--isomorphism_eps', type=float, default=1e-2)
     
     ###### encoding args: different ways to encode discrete data
 
     parser.add_argument('--id_encoding', type=str, default='one_hot_unique')
     parser.add_argument('--degree_encoding', type=str, default='one_hot_unique')
+    
+    
+    # binning and minmax encoding parameters. NB: not used in our experimental evaluation
     parser.add_argument('--id_bins', type=parse.str2list2int, default=None)
     parser.add_argument('--degree_bins', type=parse.str2list2int, default=None)
-    parser.add_argument('--id_range', type=parse.str2list2int, default=None)
-    parser.add_argument('--degree_range', type=parse.str2list2int, default=None)
     parser.add_argument('--id_strategy', type=str, default='uniform')
     parser.add_argument('--degree_strategy', type=str, default='uniform')
+    parser.add_argument('--id_range', type=parse.str2list2int, default=None)
+    parser.add_argument('--degree_range', type=parse.str2list2int, default=None)
+    
     
     parser.add_argument('--id_embedding', type=str, default='one_hot_encoder')
     parser.add_argument('--d_out_id_embedding', type=int, default=None)
@@ -502,9 +558,6 @@ if __name__ == '__main__':
     parser.add_argument('--edge_encoder', type=str, default='None')
     parser.add_argument('--d_out_edge_encoder', type=int, default=None)
     
-    parser.add_argument('--input_vn_encoder', type=str, default='one_hot_encoder')
-    parser.add_argument('--d_out_vn_encoder', type=int, default=None)
-    parser.add_argument('--d_out_vn', type=int, default=None)
     
     # sum or concatenate embeddings when multiple discrete features available
     parser.add_argument('--multi_embedding_aggr', type=str, default='sum')
@@ -522,26 +575,27 @@ if __name__ == '__main__':
     # - jk_mlp: set it to True to use an MLP after each jk layer, otherwise a linear layer will be used
     
     parser.add_argument('--model_name', type=str, default='GSN_sparse')
+    
     parser.add_argument('--num_mlp_layers', type=int, default=2)
+    parser.add_argument('--d_h', type=int, default=None)
+    parser.add_argument('--activation_mlp', type=str, default='relu')
+    parser.add_argument('--bn_mlp', type=parse.str2bool, default=True)
+    
     parser.add_argument('--num_layers', type=int, default=2)
     parser.add_argument('--d_msg', type=int, default=None)
     parser.add_argument('--d_out', type=int, default=16)
     parser.add_argument('--bn', type=parse.str2bool, default=True)
     parser.add_argument('--dropout_features', type=float, default=0)
     parser.add_argument('--activation', type=str, default='relu')
+    parser.add_argument('--train_eps', type=parse.str2bool, default=False)
     parser.add_argument('--aggr', type=str, default='add')
     parser.add_argument('--flow', type=str, default='source_to_target')
-    parser.add_argument('--readout', type=str, default='sum')
-    
-    parser.add_argument('--d_h', type=int, default=None)
-    parser.add_argument('--activation_mlp', type=str, default='relu')
-    parser.add_argument('--bn_mlp', type=parse.str2bool, default=True)
     
     parser.add_argument('--final_projection', type=parse.str2list2bool, default=[True])
     parser.add_argument('--jk_mlp', type=parse.str2bool, default=False)
-    
-    parser.add_argument('--train_eps', type=parse.str2bool, default=False)
     parser.add_argument('--residual', type=parse.str2bool, default=False)
+    
+    parser.add_argument('--readout', type=str, default='sum')
     
     ###### architecture variations:
     # - msg_kind: gin (extends gin with structural identifiers), 
@@ -553,19 +607,6 @@ if __name__ == '__main__':
     parser.add_argument('--inject_ids', type=parse.str2bool, default=False)
     parser.add_argument('--inject_degrees', type=parse.str2bool, default=False)
     parser.add_argument('--inject_edge_features', type=parse.str2bool, default=True)
-
-    ###### used only for ogb to reproduce the different configurations, 
-    # i.e. additional features (full) or not (simple), virtual node or not (vn: True)
-    parser.add_argument('--features_scope', type=str, default="full")
-    parser.add_argument('--vn', type=parse.str2bool, default=False)
-    # denotes the aggregation used by the virtual node
-    parser.add_argument('--vn_pooling', type=str, default='sum')
-    
-    ###### training parameters: mode, task, loss, metric
-    parser.add_argument('--mode', type=str, default='train')
-    parser.add_argument('--regression', type=parse.str2bool, default=False)
-    parser.add_argument('--loss_fn', type=str, default='CrossEntropyLoss')
-    parser.add_argument('--prediction_fn', type=str, default='multi_class_accuracy')
     
     ###### optimisation parameters
     parser.add_argument('--shuffle', type=parse.str2bool, default=True)
@@ -582,11 +623,19 @@ if __name__ == '__main__':
     parser.add_argument('--decay_rate', type=float, default=0.5)
     parser.add_argument('--patience', type=int, default=20)
     
+        
+    ###### training parameters: task, loss, metric
+    parser.add_argument('--regression', type=parse.str2bool, default=False)
+    parser.add_argument('--loss_fn', type=str, default='CrossEntropyLoss')
+    parser.add_argument('--prediction_fn', type=str, default='multi_class_accuracy')
+    
     ######  folders to save results 
     parser.add_argument('--results_folder', type=str, default='temp')
     parser.add_argument('--checkpoint_file', type=str, default='checkpoint')
     
-    ######  misc (gpu, logging)
+    ######  general (mode, gpu, logging)
+    parser.add_argument('--mode', type=str, default='train')
+    
     parser.add_argument('--resume', type=parse.str2bool, default=False)
     parser.add_argument('--GPU', type=parse.str2bool, default=True)
     parser.add_argument('--device_idx', type=int, default=0)
@@ -594,6 +643,9 @@ if __name__ == '__main__':
     parser.add_argument('--wandb_realtime', type=parse.str2bool, default=False)
     parser.add_argument('--wandb_project', type=str, default="gsn_project")
     parser.add_argument('--wandb_entity', type=str, default="anonymous")
+    
+    ######  misc 
+    parser.add_argument('--isomorphism_eps', type=float, default=1e-2)
 
     args = parser.parse_args()
     print(args)

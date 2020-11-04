@@ -48,7 +48,7 @@ class GNNSubstructures(torch.nn.Module):
         aggr = kwargs['aggr'] if kwargs['aggr'] is not None else 'add'
         flow = kwargs['flow'] if kwargs['flow'] is not None else 'target_to_source'
         msg_kind = kwargs['msg_kind'] if kwargs['msg_kind'] is not None else 'general'
-        train_eps = kwargs['train_eps'] if kwargs['train_eps'] is not None else [False for _ in range(len(d_out))
+        train_eps = kwargs['train_eps'] if kwargs['train_eps'] is not None else [False for _ in range(len(d_out))]
         activation_mlp = kwargs['activation_mlp']
         bn_mlp = kwargs['bn_mlp']
         jk_mlp = kwargs['jk_mlp']

@@ -80,7 +80,7 @@ class GNN_OGB(torch.nn.Module):
             self.vn_encoder = DiscreteEmbedding(kwargs['input_vn_encoder'], 
                                                 1,
                                                 [1],
-                                                kwargs['d_out_node_encoder'],
+                                                kwargs['d_out_vn_encoder'],
                                                 **vn_encoder_kwargs)
             d_in_vn = self.vn_encoder.d_out
         

@@ -159,7 +159,7 @@ def load_zinc_data(path, name, degree_as_tag, num_atom_type=28, num_bond_type=4)
 
     data = list()
     for split_name in ['train', 'val', 'test']:
-        with open(os.path.join(path,'{}.pickle'.format(split_name)), "rb") as f:
+        with open(os.path.join(path,'molecules','{}.pickle'.format(split_name)), "rb") as f:
             split_data = pickle.load(f)
         
         # loading the sampled indices from file ./zinc_molecules/<split>.index
@@ -203,18 +203,12 @@ def load_g6_graphs(path, name):
     Graph = namedtuple('Graph', ['node_features', 'edge_mat','label'])
     graph_list = list()
     for i,datum in enumerate(dataset):
-        x = torch.tensor(torch.ones(datum.number_of_nodes(),1))
+        x = torch.ones(datum.number_of_nodes(),1)
         edge_index = to_undirected(torch.tensor(list(datum.edges())).transpose(1,0))
         graph = Graph(x, edge_index, torch.tensor(i).long())
         graph_list.append(graph)
     num_classes = len(dataset)
     
-    if not os.path.exists(os.path.join(path,'10fold_idx')):
-        os.makedirs(os.path.join(path,'10fold_idx'))
-    for split_name in ['train', 'val', 'test']:
-        with open(os.path.join(path,'10fold_idx','{}_idx-0.txt'.format(split_name)), 'w') as handle:
-            for idx in range(len(dataset)):
-                handle.write('{}\n'.format(idx))
     return graph_list, num_classes
 
 

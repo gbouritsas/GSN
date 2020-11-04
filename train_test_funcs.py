@@ -34,7 +34,7 @@ def setup_optimization(model, **args):
         raise NotImplementedError('Scheduler {} is not currently supported.'.format(args['scheduler']))
     return optimizer, scheduler
 
-def resume_training(checkpoint_filename, model, optim, scheduler):
+def resume_training(checkpoint_filename, model, optim, scheduler, device):
     print('Loading checkpoint from file {}'.format(checkpoint_filename))
     checkpoint_dict = torch.load(checkpoint_filename, map_location=device)
     start_epoch = checkpoint_dict['epoch'] + 1

@@ -10,7 +10,7 @@ def str2bool(v):
 
 
 def str2ListOfListsOfLists2int(v):
-    return [[[[] if c == ' ' else int(c) for c in vii.split(',')] for vii in v.split(',,')] for vi in v.split(',,,')]
+    return [[[[] if c == ' ' else int(c) for c in vii.split(',')] for vii in vi.split(',,')] for vi in v.split(',,,')]
 
 
 def str2ListOfLists2int(v):
