@@ -34,22 +34,23 @@ molecular graphs and social networks.
 **Requirements**:
 - python 3.7
 - pytorch>=1.4.0
-- cudatoolkit>=10.1
+- cudatoolkit>=10.0
 - pytorch geometric>=1.4.3 (data preprocessing and data loaders)
 - graph-tool (subgraph isomorphism)
 - tqdm
-- ogb (experiments on the ogb datasets)
+- ogb>=1.1.1 (experiments on the ogb datasets)
 - wandb (optional: experiment monitoring)
-- tensorboardX (experiment monitoring, alternative to wandb)
+
+NB: Different pytorch and cuda versions will affect the seeds and thus the exact reproducibility of the results (altough the differences are usually quite small).
 
 **Recommended setup installations**:
 ```
 conda create --name gsn python=3.7
 conda activate gsn
-conda install pytorch==1.4.0 cudatoolkit=10.1 -c pytorch
-pip install torch-scatter==latest+cu101 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
-pip install torch-sparse==latest+cu101 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
-pip install torch-cluster==latest+cu101 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
+conda install pytorch==1.4.0 cudatoolkit=10.0 -c pytorch
+pip install torch-scatter==latest+cu100 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
+pip install torch-sparse==latest+cu100 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
+pip install torch-cluster==latest+cu100 -f https://pytorch-geometric.com/whl/torch-1.4.0.html
 pip install torch-geometric
 conda install -c conda-forge graph-tool
 pip install ogb
