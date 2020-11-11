@@ -455,8 +455,23 @@ def main(args):
                 
         print("Best train mean: {:.4f} +/- {:.4f}".format(train_accs_mean[best_index], train_accs_std[best_index]))
         print("Best test mean: {:.4f} +/- {:.4f}".format(test_accs_mean[best_index], test_accs_std[best_index]))
+        
+        if args['return_scores']:
+            scores = dict()
+            scores['best_train_mean'] = train_accs_mean[best_index]
+            scores['best_train_std'] = train_accs_std[best_index]
+            scores['last_train_std'] = train_accs_std[-1]
+            scores['last_train_mean'] = train_accs_mean[-1]
+            scores['best_test_mean'] = test_accs_mean[best_index]
+            scores['best_test_std'] = test_accs_std[best_index]
+            scores['last_test_std'] = test_accs_std[-1]
+            scores['last_test_mean'] = test_accs_mean[-1]
+            if val_losses_folds[0] is not None:
+                scores['best_validation_std'] = val_accs_std[best_index]
+                scores['best_validation_mean'] = val_accs_mean[best_index]
+                scores['last_validation_std'] = val_accs_std[-1]
+                scores['last_validation_mean'] = val_accs_mean[-1]
       
-
     if args['mode'] == 'test' and not args['onesplit']:
 
         train_acc_mean = np.mean(train_accs_folds)
@@ -471,11 +486,14 @@ def main(args):
             val_acc_mean = np.mean(val_accs_folds)
             val_acc_std = np.std(val_accs_folds)
             print("Validation accuracy: {:.4f} +/- {:.4f}".format(val_acc_mean, val_acc_std))
+            
+    if args['mode'] == 'train' and args['return_scores']:
+        return scores
+    else:
+        return None
 
 
-
-if __name__ == '__main__':
-    
+if __name__ == '__main__':   
    
     parser = argparse.ArgumentParser()
     
@@ -646,6 +664,7 @@ if __name__ == '__main__':
     
     ######  misc 
     parser.add_argument('--isomorphism_eps', type=float, default=1e-2)
+    parser.add_argument('--return_scores', action='store_true')
 
     args = parser.parse_args()
     print(args)
