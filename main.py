@@ -20,6 +20,7 @@ from utils_encoding import encode
 
 from train_test_funcs import train, test_isomorphism, test, test_ogb, setup_optimization, resume_training
 
+from models_graph_classification_mlp import MLPSubstructures
 from models_graph_classification import GNNSubstructures
 from models_graph_classification_ogb_original import GNN_OGB
 
@@ -36,7 +37,6 @@ def main(args):
     args, extract_ids_fn, count_fn, automorphism_fn, loss_fn, prediction_fn, perf_opt = process_arguments(args)
     evaluator = Evaluator(args['dataset_name']) if args['dataset'] == 'ogb' else None
 
-    
     
     ## ----------------------------------- infrastructure
 
@@ -258,10 +258,13 @@ def main(args):
             loader_val = None
              
         # instantiate model
-        if args['dataset'] == 'ogb':
-            Model = GNN_OGB
+        if args['model_name'] == 'MLP':
+            Model = MLPSubstructures
         else:
-            Model = GNNSubstructures
+            if args['dataset'] == 'ogb':
+                Model = GNN_OGB
+            else:
+                Model = GNNSubstructures
             
         model = Model(
             in_features=num_features, 
