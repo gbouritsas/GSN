@@ -102,7 +102,7 @@ class GSN_sparse(nn.Module):
         n_nodes = x.shape[0]
         if self.msg_kind == 'gin':
             if self.id_scope == 'global':
-                identifiers_ii == identifiers
+                identifiers_ii = identifiers
             else:
                 identifiers_ii, identifiers = self.central_node_id_encoder(identifiers, n_nodes)
             self_msg = torch.cat((x, identifiers_ii), -1)
