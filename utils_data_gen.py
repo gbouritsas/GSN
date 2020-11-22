@@ -34,7 +34,9 @@ def generate_dataset(data_path,
         raise ValueError('Edge list not provided.')
     for edge_list in subgraph_params['edge_list']:
         subgraph, orbit_partition, orbit_membership, aut_count = \
-                                            automorphism_fn(edge_list=edge_list)
+                                            automorphism_fn(edge_list=edge_list,
+                                                           directed=subgraph_params['directed'],
+                                                           directed_orbits=subgraph_params['directed_orbits'])
         subgraph_dicts.append({'subgraph':subgraph, 'orbit_partition': orbit_partition, 
                                'orbit_membership': orbit_membership, 'aut_count': aut_count})
         orbit_partition_sizes.append(len(orbit_partition))
@@ -101,7 +103,7 @@ def _prepare(data, subgraph_dicts, subgraph_params, regression, dataset_name, ex
     if new_data.edge_index.shape[1] == 0 and cnt_fn.__name__ == 'subgraph_isomorphism_edge_counts':
         setattr(new_data, 'identifiers', torch.zeros((0, sum(orbit_partition_sizes))).long())
     else:
-        new_data = ex_fn(cnt_fn, new_data, subgraph_dicts, subgraph_params['induced'])
+        new_data = ex_fn(cnt_fn, new_data, subgraph_dicts, subgraph_params)
 
     return new_data
 

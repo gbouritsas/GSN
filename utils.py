@@ -214,9 +214,15 @@ def prepare_dataset(path,
             os.makedirs(data_folder)
         if id_type != 'custom':
             if subgraph_params['induced']:
-                data_file = os.path.join(data_folder, '{}_induced_{}.pt'.format(id_type, k))
+                if subgraph_params['directed_orbits'] and id_scope == 'local':
+                    data_file = os.path.join(data_folder, '{}_induced_directed_orbits_{}.pt'.format(id_type, k))
+                else:
+                    data_file = os.path.join(data_folder, '{}_induced_{}.pt'.format(id_type, k))
             else:
-                data_file = os.path.join(data_folder, '{}_{}.pt'.format(id_type, k))
+                if subgraph_params['directed_orbits'] and id_scope == 'local':
+                    data_file = os.path.join(data_folder, '{}_directed_orbits_{}.pt'.format(id_type, k))
+                else:
+                    data_file = os.path.join(data_folder, '{}_{}.pt'.format(id_type, k))
             maybe_load = True
         else:
             data_file = None  # we don't save custom substructure counts
@@ -239,7 +245,12 @@ def prepare_dataset(path,
                            'binomial_tree',
                            'star_graph']:
                 k_min = 2 if id_type == 'star_graph' else 3
-                succeded, graphs_ptg, num_classes, orbit_partition_sizes = try_downgrading(data_folder, id_type, subgraph_params['induced'], k, k_min)
+                succeded, graphs_ptg, num_classes, orbit_partition_sizes = try_downgrading(data_folder, 
+                                                                                           id_type, 
+                                                                                           subgraph_params['induced'], 
+                                                                                           subgraph_params['directed_orbits'] 
+                                                                                           and id_scope == 'local',
+                                                                                           k, k_min)
                 if succeded:  # save the dataset
                     print("Saving dataset to {}".format(data_file))
                     torch.save((graphs_ptg, num_classes, orbit_partition_sizes), data_file)
@@ -281,12 +292,12 @@ def load_dataset(data_file):
     return graphs_ptg, num_classes, orbit_partition_sizes
 
 
-def try_downgrading(data_folder, id_type, induced, k, k_min):
+def try_downgrading(data_folder, id_type, induced, directed_orbits, k, k_min):
     '''
         Extracts the substructures of size up to the `k`, if a collection of substructures
         with size larger than k has already been computed.
     '''
-    found_data_filename, k_found = find_id_filename(data_folder, id_type, induced, k)
+    found_data_filename, k_found = find_id_filename(data_folder, id_type, induced, directed_orbits, k)
     if found_data_filename is not None:
         graphs_ptg, num_classes, orbit_partition_sizes = load_dataset(found_data_filename)
         print("Downgrading k from dataset {}...".format(found_data_filename))
@@ -296,15 +307,21 @@ def try_downgrading(data_folder, id_type, induced, k, k_min):
         return False, None, None, None
 
 
-def find_id_filename(data_folder, id_type, induced, k):
+def find_id_filename(data_folder, id_type, induced, directed_orbits, k):
     '''
         Looks for existing precomputed datasets in `data_folder` with counts for substructure 
         `id_type` larger `k`.
     '''
     if induced:
-        pattern = os.path.join(data_folder, '{}_induced_[0-9]*.pt'.format(id_type))
+        if directed_orbits:
+            pattern = os.path.join(data_folder, '{}_induced_directed_orbits_[0-9]*.pt'.format(id_type))
+        else:
+            pattern = os.path.join(data_folder, '{}_induced_[0-9]*.pt'.format(id_type))
     else:
-        pattern = os.path.join(data_folder, '{}_[0-9]*.pt'.format(id_type))
+        if directed_orbits:
+            pattern = os.path.join(data_folder, '{}_directed_orbits_[0-9]*.pt'.format(id_type))
+        else:
+            pattern = os.path.join(data_folder, '{}_[0-9]*.pt'.format(id_type))
     filenames = glob.glob(pattern)
     for name in filenames:
         k_found = int(re.findall(r'\d+', name)[-1])

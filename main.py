@@ -67,7 +67,10 @@ def main(args):
     ## ----------------------------------- datasets: prepare and preprocess (count or load subgraph counts)
     
     path = os.path.join(args['root_folder'], args['dataset'], args['dataset_name'])
-    subgraph_params = {'induced': args['induced'], 'edge_list': args['custom_edge_list']}
+    subgraph_params = {'induced': args['induced'], 
+                       'edge_list': args['custom_edge_list'],
+                       'directed': args['directed'],
+                       'directed_orbits': args['directed_orbits']}
     graphs_ptg, num_classes, orbit_partition_sizes = prepare_dataset(path, 
                                                                      args['dataset'],
                                                                      args['dataset_name'], 
@@ -553,6 +556,8 @@ if __name__ == '__main__':
     parser.add_argument('--k', type=parse.str2list2int, default=[3])
     parser.add_argument('--id_scope', type=str, default='local')
     parser.add_argument('--custom_edge_list', type=parse.str2ListOfListsOfLists2int, default=None)
+    parser.add_argument('--directed', type=parse.str2bool, default=False)
+    parser.add_argument('--directed_orbits', type=parse.str2bool, default=False)
     
     ###### encoding args: different ways to encode discrete data
 
