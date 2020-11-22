@@ -142,9 +142,9 @@ class MLPSubstructures(torch.nn.Module):
             e = self.edge_encoder(data.edge_features) 
             
         if self.degree_as_tag[0] and self.retain_features[0]==True:
-            x = torch.cat((x, kwargs['degrees']), 1)
+            x = torch.cat((x, degrees), 1)
         elif self.degree_as_tag[0] and self.retain_features[0]==False:
-            x = kwargs['degrees']
+            x = degrees
         else:
             x = x
             
