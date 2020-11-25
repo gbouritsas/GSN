@@ -96,7 +96,7 @@ def _prepare(data, subgraph_dicts, subgraph_params, regression, dataset_name, ex
     if hasattr(data, 'edge_features'):
         setattr(new_data, 'edge_features', data.edge_features)    
 
-    if regression or dataset_name in {'ogbg-molpcba', 'ogbg-molhiv'}:
+    if regression or dataset_name in {'ogbg-molpcba', 'ogbg-molhiv', 'ZINC'}:
         setattr(new_data, 'y', torch.tensor(data.label).unsqueeze(0).float())
     else:
         setattr(new_data, 'y', torch.tensor(data.label).unsqueeze(0).long())
