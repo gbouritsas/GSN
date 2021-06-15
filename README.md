@@ -141,7 +141,7 @@ The rest of the results reported in the main paper can be obtained accordingly, 
 
 ## Update (June'21)
 
-We extended the repo with a new set of experiments: (1) GSN with 100K parameters and 500K on the ZINC dataset as instructed in the official [leaderboard](https://github.com/graphdeeplearning/benchmarking-gnns/blob/master/docs/07_leaderboards.md). (2) Combination of GSN with [DGN](https://arxiv.org/abs/2010.02863), where we defined a vector field based on structural features instead of eigenvectors. The code can be found in the [directional_gsn]() folder. Please use the following installation instructions to reproduce the results:
+We extended the repo with a new set of experiments: (1) GSN with 100K parameters and 500K on the ZINC dataset as instructed in the official [leaderboard](https://github.com/graphdeeplearning/benchmarking-gnns/blob/master/docs/07_leaderboards.md). (2) Combination of GSN with [DGN](https://arxiv.org/abs/2010.02863), where we defined a vector field based on structural features instead of eigenvectors. The code can be found in the [directional_gsn](https://github.com/gbouritsas/graph-substructure-networks/tree/master/directional_gsn) folder. Please use the following installation instructions to reproduce the results:
 ```
 conda create --name gsn python=3.7
 conda activate gsn
