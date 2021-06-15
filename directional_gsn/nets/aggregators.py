@@ -79,6 +79,7 @@ AGGREGATORS = {'mean': aggregate_mean, 'sum': aggregate_sum, 'max': aggregate_ma
                'dir3-av': partial(aggregate_dir_av, eig_idx=3),
                'dir4-av': partial(aggregate_dir_av, eig_idx=4),
                'dir5-av': partial(aggregate_dir_av, eig_idx=5),
+               'dir6-av': partial(aggregate_dir_av, eig_idx=6),
                'dir1-0.1': partial(aggregate_dir_softmax, eig_idx=1, alpha=0.1),
                'dir2-0.1': partial(aggregate_dir_softmax, eig_idx=2, alpha=0.1),
                'dir3-0.1': partial(aggregate_dir_softmax, eig_idx=3, alpha=0.1),

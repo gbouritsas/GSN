@@ -40,17 +40,13 @@ class DGNLayerSimple(nn.Module):
         return {'e': edges.data['e'], 'vector_field': edges.data['vector_field'].to('cuda' if torch.cuda.is_available() else 'cpu')}
 
     def reduce_func(self, nodes):
-#         import pdb;pdb.set_trace()
         h_in = nodes.data['h']
         h = nodes.mailbox['e']
         vector_field = nodes.mailbox['vector_field']
         D = h.shape[-2]
 
         # aggregators and scalers
-        #import pdb;pdb.set_trace()
-        #import pdb;pdb.set_trace()
         h = torch.cat([aggregate(h, vector_field, h_in) for aggregate in self.aggregators], dim=1)
-        #import pdb;pdb.set_trace()
         if len(self.scalers) > 1:
             h = torch.cat([scale(h, D=D, avg_d=self.avg_d) for scale in self.scalers], dim=1)
 
@@ -68,7 +64,6 @@ class DGNLayerSimple(nn.Module):
 
         # aggregation
         g.update_all(self.message_func, self.reduce_func)
-        #import pdb;pdb.set_trace()
         h = g.ndata['h']
 
         # posttransformation
