@@ -139,6 +139,42 @@ By following the instructions above to train our models on each of the datasets,
 
 The rest of the results reported in the main paper can be obtained accordingly, i.e. by changing the hyperparameters as per the supplementary material.
 
+## Update (June'21)
+
+We extended the repo with a new set of experiments: (1) GSN with 100K parameters and 500K on the ZINC dataset as instructed in the official [leaderboard](https://github.com/graphdeeplearning/benchmarking-gnns/blob/master/docs/07_leaderboards.md). (2) Combination of GSN with [DGN](https://arxiv.org/abs/2010.02863), where we defined a vector field based on structural features instead of eigenvectors. The code can be found in the [directional_gsn]() folder. Please use the following installation instructions to reproduce the results:
+```
+conda create --name gsn python=3.7
+conda activate gsn
+conda install pytorch==1.8.0 cudatoolkit=10.2 -c pytorch
+pip install torch-scatter -f https://pytorch-geometric.com/whl/torch-1.8.0+cu102.html
+pip install torch-sparse -f https://pytorch-geometric.com/whl/torch-1.8.0+cu102.html
+pip install torch-cluster -f https://pytorch-geometric.com/whl/torch-1.8.0+cu102.html
+pip install torch-geometric
+conda install -c conda-forge graph-tool
+pip install ogb
+pip install tqdm
+pip install wandb
+conda install -c dglteam dgl-cuda10.2
+```
+Then, run the following commands. The expected results are the following: 
+- ZINC 100K **0.115 ± 0.012** ,
+- ZINC 500K **0.101 ± 0.010**,
+- molhiv 100K **0.8039±0.0090**
+##### ZINC 100K 
+```
+cd scripts
+python ZINC_10_runs_100K.py
+```
+##### ZINC 500K
+```
+cd scripts
+python ZINC_10_runs_500K.py
+```
+##### directional GSN (molhiv)
+```
+cd directional_gsn
+source molhiv_10_runs.sh
+```
 ## Citation
 
 If you find our work useful for your research, please consider citing us:
