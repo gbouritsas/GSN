@@ -40,6 +40,7 @@ class GNNSubstructures(torch.nn.Module):
         self.final_projection = kwargs['final_projection']
         self.inject_ids = kwargs['inject_ids']
         self.inject_edge_features = kwargs['inject_edge_features']
+        self.random_features = kwargs['random_features']
 
         id_scope = kwargs['id_scope']
         d_msg = kwargs['d_msg']
@@ -69,6 +70,10 @@ class GNNSubstructures(torch.nn.Module):
                                                     kwargs['d_out_node_encoder'],
                                                     **encoders_kwargs)
         d_in = self.input_node_encoder.d_out
+        if self.random_features:
+            self.r_d_out = d_out[0]
+            d_in = d_in + self.r_d_out
+            
 
 
         #-------------- Edge embedding (for each GNN layer)
@@ -203,7 +208,10 @@ class GNNSubstructures(torch.nn.Module):
             
         #-------------- edge index and initial node features encoding
         edge_index = data.edge_index                                  
-        x = self.input_node_encoder(data.x)    
+        x = self.input_node_encoder(data.x)  
+        if self.random_features:
+            r = torch.rand(size=(x.shape[0], self.r_d_out), device=x.device).float()
+            x = torch.cat((x,r), 1)
             
         #-------------- NOTE: the node features are first encoded and then passed to the jk layer 
         x_interm = [x]

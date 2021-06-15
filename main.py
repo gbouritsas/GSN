@@ -150,7 +150,6 @@ def main(args):
                                                                       **encoding_parameters)
     print("Done.")
     
-    
     assert args['mode'] in ['isomorphism_test', 'train','test'], "Unknown mode. Supported options are 'isomorphism_test', 'train','test'"
     
     ## ----------------------------------- graph isomorphism testing
@@ -602,6 +601,7 @@ if __name__ == '__main__':
     
     parser.add_argument('--model_name', type=str, default='GSN_sparse')
     
+    parser.add_argument('--random_features',  type=parse.str2bool, default=False)
     parser.add_argument('--num_mlp_layers', type=int, default=2)
     parser.add_argument('--d_h', type=int, default=None)
     parser.add_argument('--activation_mlp', type=str, default='relu')
@@ -644,6 +644,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--regularization', type=float, default=0)
     parser.add_argument('--scheduler', type=str, default='StepLR')
+    parser.add_argument('--scheduler_mode', type=str, default='min')
     parser.add_argument('--min_lr', type=float, default=0.0)
     parser.add_argument('--decay_steps', type=int, default=50)
     parser.add_argument('--decay_rate', type=float, default=0.5)

@@ -1,11 +1,14 @@
 import argparse
+import sys
+sys.path.append('../')
 import main
 import utils_parsing as parse
 import torch
 
 scores_list = list()
-for i in range(10):
-    
+num_seeds = 10
+for i in range(num_seeds):
+
     parser = argparse.ArgumentParser()
 
     # set seeds to ensure reproducibility
@@ -31,15 +34,15 @@ for i in range(10):
     parser.add_argument('--dataset', type=str, default='bioinformatics')
     parser.add_argument('--dataset_name', type=str, default='MUTAG')
     parser.add_argument('--split', type=str, default='given')
-    parser.add_argument('--root_folder', type=str, default='./datasets')
+    parser.add_argument('--root_folder', type=str, default='/vol/deform/gbouritsas/datasets')
 
     ######  set degree_as_tag to True to use the degree as node features;
     # set retain_features to True to keep the existing features as well;
     parser.add_argument('--degree_as_tag', type=parse.str2bool, default=False)
-    parser.add_argument('--retain_features', type=parse.str2bool, default=False)
+    parser.add_argument('--retain_features', type=parse.str2bool, default=True)
 
 
-    ###### used only for ogb to reproduce the different configurations, 
+    ###### used only for ogb to reproduce the different configurations,
     # i.e. additional features (full) or not (simple), virtual node or not (vn: True)
     parser.add_argument('--features_scope', type=str, default="full")
     parser.add_argument('--vn', type=parse.str2bool, default=False)
@@ -61,6 +64,8 @@ for i in range(10):
     parser.add_argument('--k', type=parse.str2list2int, default=[3])
     parser.add_argument('--id_scope', type=str, default='local')
     parser.add_argument('--custom_edge_list', type=parse.str2ListOfListsOfLists2int, default=None)
+    parser.add_argument('--directed', type=parse.str2bool, default=False)
+    parser.add_argument('--directed_orbits', type=parse.str2bool, default=False)
 
     ###### encoding args: different ways to encode discrete data
 
@@ -105,6 +110,7 @@ for i in range(10):
 
     parser.add_argument('--model_name', type=str, default='GSN_sparse')
 
+    parser.add_argument('--random_features', type=parse.str2bool, default=False)
     parser.add_argument('--num_mlp_layers', type=int, default=2)
     parser.add_argument('--d_h', type=int, default=None)
     parser.add_argument('--activation_mlp', type=str, default='relu')
@@ -127,7 +133,7 @@ for i in range(10):
     parser.add_argument('--readout', type=str, default='sum')
 
     ###### architecture variations:
-    # - msg_kind: gin (extends gin with structural identifiers), 
+    # - msg_kind: gin (extends gin with structural identifiers),
     #             general (general formulation with MLPs - eq 3,4 of the main paper)
     #             ogb (extends the architecture used in ogb with structural identifiers)
     # - inject*: passes the relevant variable to deeper layers akin to skip connections.
@@ -147,6 +153,7 @@ for i in range(10):
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--regularization', type=float, default=0)
     parser.add_argument('--scheduler', type=str, default='StepLR')
+    parser.add_argument('--scheduler_mode', type=str, default='min')    
     parser.add_argument('--min_lr', type=float, default=0.0)
     parser.add_argument('--decay_steps', type=int, default=50)
     parser.add_argument('--decay_rate', type=float, default=0.5)
@@ -158,7 +165,7 @@ for i in range(10):
     parser.add_argument('--loss_fn', type=str, default='CrossEntropyLoss')
     parser.add_argument('--prediction_fn', type=str, default='multi_class_accuracy')
 
-    ######  folders to save results 
+    ######  folders to save results
     parser.add_argument('--results_folder', type=str, default='temp')
     parser.add_argument('--checkpoint_file', type=str, default='checkpoint')
 
@@ -173,16 +180,22 @@ for i in range(10):
     parser.add_argument('--wandb_project', type=str, default="gsn_project")
     parser.add_argument('--wandb_entity', type=str, default="anonymous")
 
-    ######  misc 
+    ######  misc
     parser.add_argument('--isomorphism_eps', type=float, default=1e-2)
     parser.add_argument('--return_scores', action='store_true')
 
-    args = ['--seed', '{}'.format(i), '--onesplit', 'True', '--dataset', 'chemical', '--dataset_name', 'ZINC', '--root_folder', './datasets', '--id_type', 'cycle_graph', '--induced', 'False', '--k', '8', '--id_scope', 'global', '--id_encoding', 'one_hot_unique', '--id_embedding', 'one_hot_encoder', '--input_node_encoder', 'one_hot_encoder', '--edge_encoder', 'one_hot_encoder', '--model_name', 'GSN_edge_sparse', '--msg_kind', 'general', '--num_layers', '4 ', '--d_out', '128', '--dropout_features', '0', '--final_projection', 'False', '--jk_mlp', 'True', '--readout', 'sum', '--batch_size', '128', '--num_epochs', '1000', '--lr', '1e-3 ', '--scheduler', 'ReduceLROnPlateau', '--decay_rate', '0.5', '--patience', '5', '--min_lr', '1e-5 ', '--regression', 'True', '--loss_fn', 'L1Loss', '--prediction_fn', 'L1Loss', '--mode', 'train', '--device_idx', '1', '--wandb', 'False', '--return_scores', '--inject_ids', 'False']
 
+    
+    args = ['--seed', '{}'.format(i), '--onesplit', 'True', '--dataset', 'chemical', '--dataset_name', 'ZINC', '--id_type', 'cycle_graph', '--induced', 'False', '--k', '8', '--id_scope', 'global', '--id_encoding', 'one_hot_unique', '--id_embedding', 'one_hot_encoder', '--input_node_encoder', 'one_hot_encoder', '--edge_encoder', 'one_hot_encoder', '--model_name', 'GSN_edge_sparse', '--msg_kind', 'general', '--num_layers', '4 ', '--d_out', '150', '--dropout_features', '0', '--final_projection', 'False', '--jk_mlp', 'True', '--readout', 'sum', '--batch_size', '128', '--num_epochs', '1000', '--lr', '1e-3 ', '--scheduler', 'ReduceLROnPlateau', '--decay_rate', '0.5', '--patience', '5', '--min_lr', '1e-5 ', '--regression', 'True', '--loss_fn', 'L1Loss', '--prediction_fn', 'L1Loss', '--mode', 'train', '--device_idx', '0', '--wandb', 'False', '--return_scores', '--inject_ids', 'False', '--random_features', 'False', '--degree_embedding', 'None']
+
+
+    
+    
+    
     args = parser.parse_args(args)
 
     scores = main.main(vars(args))
     scores_list.append(scores)
-                
+
 last_tests = [scores['last_test_mean'] for scores in scores_list]
-print('{} ± {}'.format(torch.mean(torch.FloatTensor(last_tests)), torch.std(torch.FloatTensor(last_tests))))
+print('mean test MAE: {} ± {} (number of seeds: {})'.format(torch.mean(torch.FloatTensor(last_tests)), torch.std(torch.FloatTensor(last_tests)),num_seeds))
